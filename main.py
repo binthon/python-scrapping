@@ -89,3 +89,4 @@ def countOracle(cloudName):
         driver.quit()
                 
 choiceCloud()
+
