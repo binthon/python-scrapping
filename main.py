@@ -5,20 +5,38 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
 import re
+import sqlite3
+import subprocess
 
 options = Options() 
 options.add_argument("-headless") 
 driver = webdriver.Firefox(options=options) 
+
+cloudMapping= {
+    "amazon web services": "aws",
+    "amazon": "aws",
+    "google cloud": "gcp",
+    "google cloud platform": "gcp",
+    "microsoft azure": "azure",
+    "ms azure": "azure",
+    "ibm cloud": "ibm cloud",  
+    "oracle cloud": "oracle cloud",  
+   
+}
+
+
 def choiceCloud():
-    cloudName = input("Enter the name of the cloud service provider whose number of offers you want to know: ")
-    if (cloudName.lower() == "aws") or (cloudName.lower() == "amazon web services") or \
-    (cloudName.lower() == "amazon") or (cloudName.lower() == "google cloud") or \
-    (cloudName.lower() == "azure") or (cloudName.lower() == "microsoft azure") or \
-    (cloudName.lower() == "ms azure") or (cloudName.lower() == "google cloud platform") or \
-    (cloudName.lower() == "gcp") or (cloudName.lower() == "ibm cloud") or (cloudName.lower() == "oracle cloud"):
-        countCloud(cloudName.lower())
-    else:
-        print("Check cloud name")
+    while True:
+        cloudName = input("Enter the name of the cloud service provider whose number of offers you want to know: ").lower()
+        cloudName = cloudMapping.get(cloudName, cloudName)
+
+        if cloudName in ["aws", "azure", "gcp", "ibm cloud", "oracle cloud"]:
+            countCloud(cloudName)
+            break 
+        else:
+            print("Check and change cloud name.")
+
+
     
 def countCloud(cloudName):
 
@@ -37,8 +55,32 @@ def countCloud(cloudName):
         quantityAll = int(quantityPracuj) + int(numberJoin) + int(quantityNFJ) + int(numberProtocol)
         print(f"Sum offer is: {quantityAll}")
         driver.quit()
+      
+        conn = sqlite3.connect('jobs_offers.db')
+        cursor = conn.cursor()
+
+
+        cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS {cloudName} (
+            id INTEGER PRIMARY KEY,
+            quantityPracuj INTEGER,
+            numberJoin INTEGER,
+            quantityNFJ INTEGER,
+            numberProtocol INTEGER,
+            quantityAll INTEGER
+            )
+        ''')
+        conn.commit()
+        cursor.execute(f'''
+            INSERT INTO {cloudName} (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll)
+            VALUES (?, ?, ?, ?, ?)
+            ''', (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll))
+
+        conn.commit()
+        conn.close()
     finally:
         driver.quit()
+    subprocess.run(["python", "app.py", cloudName])
 
 def countPracuj(cloudName, driver):
     words = cloudName.split()
@@ -48,7 +90,6 @@ def countPracuj(cloudName, driver):
     else:
         driver.get(f"https://it.pracuj.pl/praca/{cloudName};kw")
 
-        # Oczekiwanie na element zawierający liczbę ofert pracy
     elementPracuj = WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CLASS_NAME, "core_c11srdo1"))
     )
