@@ -7,6 +7,7 @@ from selenium.webdriver.firefox.options import Options
 import re
 import sqlite3
 import subprocess
+import os
 
 options = Options() 
 options.add_argument("-headless") 
@@ -14,28 +15,21 @@ driver = webdriver.Firefox(options=options)
 
 def choiceCloud():
     cloud_providers = ["aws", "azure", "gcp", "ibm cloud", "oracle cloud"]
+    website_providers = ["pracuj", "justjoin", "nfj", "theprotocol"]
     for cloud_provider in cloud_providers:
-        countCloud(cloud_provider)
+        for website_provider in website_providers:
+            quantityPracuj = countPracuj(cloud_provider, driver)
+            numberJoin = countJust(cloud_provider, driver)
+            quantityNFJ = countNFJCloud(cloud_provider, driver)
+            numberProtocol = countProtocol(cloud_provider, driver)
+            quantityAll = int(quantityPracuj) + int(numberJoin) + int(quantityNFJ) + int(numberProtocol)
         
-
-
+            countCloud(cloud_provider, quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll)
     
-def countCloud(cloudName):
+            countForWebsite(website_provider, cloud_provider, quantityPracuj, numberJoin, quantityNFJ, numberProtocol)
 
-   
-        #scrapping from pracuj
-        quantityPracuj = countPracuj(cloudName, driver)
 
-        #scrapping from just join
-        numberJoin = countJust(cloudName, driver)
-        #scrapping from NFJ 
-        quantityNFJ = countNFJCloud(cloudName, driver)
-
-        #scrapping from protocol
-        numberProtocol = countProtocol(cloudName, driver)
-        #offerSum
-        quantityAll = int(quantityPracuj) + int(numberJoin) + int(quantityNFJ) + int(numberProtocol)
-        print(f"Sum offer is: {quantityAll}")
+def countCloud(cloudName, quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll):
         conn = sqlite3.connect('jobs_offers.db')
         cursor = conn.cursor()
         cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{cloudName}'")
@@ -72,8 +66,48 @@ def countCloud(cloudName):
             cursor.execute(insert_query, (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll))
         conn.commit()
         conn.close()
-        
-   
+
+def countForWebsite(website_provider, cloud_provider, quantityPracuj, numberJoin, quantityNFJ, numberProtocol):
+    if website_provider == "pracuj":
+        updateJobPortalTable(website_provider, cloud_provider, quantityPracuj)
+    elif website_provider == "justjoin":
+        updateJobPortalTable(website_provider, cloud_provider, numberJoin)
+    elif website_provider == "nfj":
+        updateJobPortalTable(website_provider, cloud_provider, quantityNFJ)
+    elif website_provider == "theprotocol":
+        updateJobPortalTable(website_provider, cloud_provider, numberProtocol)
+
+def updateJobPortalTable(website_provider, cloud_provider, quantity):
+    conn = sqlite3.connect('jobs_offers.db')
+    cursor = conn.cursor()
+    table_name = f"{website_provider}"
+    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+    if not cursor.fetchone():
+        cursor.execute(f'''
+            CREATE TABLE '{table_name}' (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                portal_name TEXT UNIQUE,
+                quantity INTEGER
+            )
+        ''')
+    cursor.execute(f"SELECT quantity FROM '{table_name}' WHERE portal_name = ?", (cloud_provider,))
+    row = cursor.fetchone()
+    if row:
+
+        cursor.execute(f'''
+            UPDATE '{table_name}'
+            SET quantity = quantity + ?
+            WHERE portal_name = ?
+        ''', (quantity, cloud_provider))
+    else:
+
+        cursor.execute(f'''
+            INSERT INTO '{table_name}' (portal_name, quantity)
+            VALUES (?, ?)
+        ''', (cloud_provider, quantity))
+
+    conn.commit()
+    conn.close()
 
 def countPracuj(cloudName, driver):
     words = cloudName.split()
@@ -87,7 +121,6 @@ def countPracuj(cloudName, driver):
         EC.presence_of_element_located((By.CLASS_NAME, "core_c11srdo1"))
     )
     quantityPracuj = elementPracuj.text
-    print(f"The number of offers for {cloudName} in Pracuj.pl is: {quantityPracuj}")
 
     return quantityPracuj
 
@@ -106,16 +139,12 @@ def countJust(cloudName, driver):
         numberJoin = quantityJoin.group(1)
         numberJoin = numberJoin.replace(" ", "")
         cloudName = cloudName.replace("+", " ")
-        print(f"The number of offers for {cloudName} in Just Join is: {numberJoin}")
-    else:
-        print("No valid number found in the text.")
-
+        
     return numberJoin
 
 def countNFJCloud(cloudName, driver):
     if( cloudName == "ibm cloud") or (cloudName == "oracle cloud"):
         quantityNFJ = 0
-        print("Not key word for this webiste")
 
         return quantityNFJ 
     else:
@@ -125,15 +154,14 @@ def countNFJCloud(cloudName, driver):
         )
         link_elements = driver.find_elements(By.CLASS_NAME, "list-container a")
         quantityNFJ = len(link_elements)
-        print(f"The number of offers for {cloudName} in No Fluff Jobs is: {quantityNFJ}")
 
         return quantityNFJ 
 
 def countProtocol(cloudName, driver):
     if( cloudName == "ibm cloud") or (cloudName == "oracle cloud"):
         numberProtocol = 0
-        print("Not key word for this webiste")
         return numberProtocol
+    
     else:
         driver.get(f"https://theprotocol.it/filtry/{cloudName};t")
         elementProtocl = WebDriverWait(driver, 20).until(
@@ -144,17 +172,27 @@ def countProtocol(cloudName, driver):
             numberProtocol = quantityProtocol.group(1)
             numberProtocol = numberProtocol.replace(" ", "")
             cloudName = cloudName.replace("+", " ")
-            print(f"The number of offers for {cloudName} in theProtocol is: {numberProtocol}")
-        else:
-            print("No valid number found in the text.")
-
         return numberProtocol
-        
-
+    
 if __name__ == "__main__":
-    try:
-        choiceCloud()
-        subprocess.run(["python", "app.py"])
-    finally:
-        driver.quit() 
-   
+    while True: 
+        choice = input("Do you want to directly run app? (YES/NO): ").strip().lower()
+        if choice == 'yes':
+            if os.path.exists('jobs_offers.db'):
+                try:
+                    subprocess.run(["python", "app.py"])
+                finally:
+                    driver.quit()
+                break 
+            else:
+                print("Database doesn't exist. First, web scraping will be done.")
+                choiceCloud()
+                subprocess.run(["python", "app.py"])
+                break  
+        elif choice == 'no':
+            choiceCloud()
+            subprocess.run(["python", "app.py"])
+            break  
+        else:
+            print("Type 'yes' or 'no'.")
+
