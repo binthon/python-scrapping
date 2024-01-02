@@ -12,35 +12,17 @@ options = Options()
 options.add_argument("-headless") 
 driver = webdriver.Firefox(options=options) 
 
-cloudMapping= {
-    "amazon web services": "aws",
-    "amazon": "aws",
-    "google cloud": "gcp",
-    "google cloud platform": "gcp",
-    "microsoft azure": "azure",
-    "ms azure": "azure",
-    "ibm cloud": "ibm cloud",  
-    "oracle cloud": "oracle cloud",  
-   
-}
-
-
 def choiceCloud():
-    while True:
-        cloudName = input("Enter the name of the cloud service provider whose number of offers you want to know: ").lower()
-        cloudName = cloudMapping.get(cloudName, cloudName)
-
-        if cloudName in ["aws", "azure", "gcp", "ibm cloud", "oracle cloud"]:
-            countCloud(cloudName)
-            break 
-        else:
-            print("Check and change cloud name.")
+    cloud_providers = ["aws", "azure", "gcp", "ibm cloud", "oracle cloud"]
+    for cloud_provider in cloud_providers:
+        countCloud(cloud_provider)
+        
 
 
     
 def countCloud(cloudName):
 
-    try:
+   
         #scrapping from pracuj
         quantityPracuj = countPracuj(cloudName, driver)
 
@@ -54,14 +36,25 @@ def countCloud(cloudName):
         #offerSum
         quantityAll = int(quantityPracuj) + int(numberJoin) + int(quantityNFJ) + int(numberProtocol)
         print(f"Sum offer is: {quantityAll}")
-        driver.quit()
-      
         conn = sqlite3.connect('jobs_offers.db')
         cursor = conn.cursor()
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{cloudName}'")
+        table_exists = cursor.fetchone()
 
-
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {cloudName} (
+        if table_exists:
+            update_query = f'''
+            UPDATE "{cloudName}"
+                SET quantityPracuj = ?,
+                numberJoin = ?,
+                quantityNFJ = ?,
+                numberProtocol = ?,
+                quantityAll = ?
+            WHERE id = ?
+            '''
+            cursor.execute(update_query, (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll, 1))
+        else:
+            create_query = f'''
+            CREATE TABLE "{cloudName}" (
             id INTEGER PRIMARY KEY,
             quantityPracuj INTEGER,
             numberJoin INTEGER,
@@ -69,18 +62,18 @@ def countCloud(cloudName):
             numberProtocol INTEGER,
             quantityAll INTEGER
             )
-        ''')
-        conn.commit()
-        cursor.execute(f'''
-            INSERT INTO {cloudName} (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll)
-            VALUES (?, ?, ?, ?, ?)
-            ''', (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll))
+            '''
+            cursor.execute(create_query)
 
+            insert_query = f'''
+            INSERT INTO "{cloudName}" (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll)
+            VALUES (?, ?, ?, ?, ?)
+            '''
+            cursor.execute(insert_query, (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll))
         conn.commit()
         conn.close()
-    finally:
-        driver.quit()
-    subprocess.run(["python", "app.py", cloudName])
+        
+   
 
 def countPracuj(cloudName, driver):
     words = cloudName.split()
@@ -120,9 +113,7 @@ def countJust(cloudName, driver):
     return numberJoin
 
 def countNFJCloud(cloudName, driver):
-    if( cloudName == "ibm cloud") or (cloudName == "oracle cloud") \
-    or (cloudName.lower() == "microsoft azure") or (cloudName.lower() == "ms azure") \
-    or (cloudName.lower() == "amazon web services") or (cloudName.lower() == "google cloud platform") or (cloudName.lower() == "google cloud"):
+    if( cloudName == "ibm cloud") or (cloudName == "oracle cloud"):
         quantityNFJ = 0
         print("Not key word for this webiste")
 
@@ -139,10 +130,10 @@ def countNFJCloud(cloudName, driver):
         return quantityNFJ 
 
 def countProtocol(cloudName, driver):
-    if( cloudName == "ibm cloud") or (cloudName == "oracle cloud") or (cloudName.lower() == "ms azure"):
+    if( cloudName == "ibm cloud") or (cloudName == "oracle cloud"):
         numberProtocol = 0
         print("Not key word for this webiste")
-        return numberProtocol == 0
+        return numberProtocol
     else:
         driver.get(f"https://theprotocol.it/filtry/{cloudName};t")
         elementProtocl = WebDriverWait(driver, 20).until(
@@ -159,5 +150,11 @@ def countProtocol(cloudName, driver):
 
         return numberProtocol
         
-choiceCloud()
 
+if __name__ == "__main__":
+    try:
+        choiceCloud()
+        subprocess.run(["python", "app.py"])
+    finally:
+        driver.quit() 
+   

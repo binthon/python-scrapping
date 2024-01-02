@@ -4,6 +4,20 @@
     <title>Oferty Prac z Chmurami</title>
 </head>
 <body>
-    <img src="data:image/png;base64,{{ plot }}" alt="Wykres Ofert Pracy" />
+    <form action="/" method="get">
+        <label for="cloudSelect">Wybierz dostawcę chmury:</label>
+        <select name="cloudName" id="cloudSelect">
+            <option value="aws">AWS</option>
+            <option value="azure">Azure</option>
+            <option value="gcp">Google Cloud</option>
+            <option value="ibm cloud">IBM Cloud</option>
+            <option value="oracle cloud">Oracle Cloud</option>
+        </select>
+        <input type="submit" value="Pokaż dane">
+    </form>
+    {% if plot %}
+        <img src="data:image/png;base64,{{ plot }}">
+    {% endif %}
+    
 </body>
 </html>
