@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import re
 import sqlite3
 import subprocess
@@ -116,12 +117,13 @@ def countPracuj(cloudName, driver):
         driver.get(f"https://it.pracuj.pl/praca/{search_query};kw")
     else:
         driver.get(f"https://it.pracuj.pl/praca/{cloudName};kw")
-
-    elementPracuj = WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "core_c11srdo1"))
-    )
-    quantityPracuj = elementPracuj.text
-
+    try:
+        elementPracuj = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "core_c11srdo1"))
+        )
+        quantityPracuj = elementPracuj.text
+    except TimeoutException:
+        return 0
     return quantityPracuj
 
 def countJust(cloudName, driver):
@@ -131,36 +133,55 @@ def countJust(cloudName, driver):
         driver.get(f"https://justjoin.it/?keyword={search_query}")
     else:
         driver.get(f"https://justjoin.it/?keyword={cloudName}")
-    elementJoin = WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "MuiTab-iconWrapper"))
-    )
-    quantityJoin = re.search(r'(\d{1,3}(?:\s\d{3})*)', elementJoin.text)
-    if quantityJoin:
-        numberJoin = quantityJoin.group(1)
-        numberJoin = numberJoin.replace(" ", "")
-        cloudName = cloudName.replace("+", " ")
+    try:
+        elementJoin = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "MuiTab-iconWrapper"))
+        )
+        quantityJoin = re.search(r'(\d{1,3}(?:\s\d{3})*)', elementJoin.text)
+        if quantityJoin:
+            numberJoin = quantityJoin.group(1)
+            numberJoin = numberJoin.replace(" ", "")
+            cloudName = cloudName.replace("+", " ")
+            return numberJoin
+    except TimeoutException:
+        return 0 
         
     return numberJoin
 
 def countNFJCloud(cloudName, driver):
-    if( cloudName == "ibm cloud") or (cloudName == "oracle cloud"):
-        quantityNFJ = 0
-
-        return quantityNFJ 
+    if cloudName.lower() in ["ibm cloud", "oracle cloud"]:
+        return 0
     else:
-        driver.get(f"https://nofluffjobs.com/pl/{cloudName}")
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "list-container"))
-        )
-        link_elements = driver.find_elements(By.CLASS_NAME, "list-container a")
-        quantityNFJ = len(link_elements)
+        page_number = 1
+        driver.get(f"https://nofluffjobs.com/pl/{cloudName}?page={page_number}")
+        
+        last_page_reached = False
+        while not last_page_reached:
+            try:
+                # Sprawdź, czy przycisk "Load more" jest dostępny
+                load_more_button = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'nfjloadmore')]"))
+                )
+                if load_more_button.is_displayed():
+                    load_more_button.click()
+                    page_number += 1
+                    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "list-container")))
+                else:
+                    # Jeśli przycisk "Load more" nie jest widoczny, to znaczy, że jesteśmy na ostatniej stronie
+                    last_page_reached = True
+            except TimeoutException:
+                # Jeśli czas oczekiwania na przycisk "Load more" zostanie przekroczony, jesteśmy na ostatniej stronie
+                last_page_reached = True
 
-        return quantityNFJ 
+        # Po osiągnięciu ostatniej strony zliczamy oferty
+        offer_elements = driver.find_elements(By.CSS_SELECTOR, ".list-container > a")
+        quantityNFJ = len(offer_elements)
+        return quantityNFJ
+
 
 def countProtocol(cloudName, driver):
-    if( cloudName == "ibm cloud") or (cloudName == "oracle cloud"):
-        numberProtocol = 0
-        return numberProtocol
+    if cloudName.lower() in ["ibm cloud", "oracle cloud"]:
+        return 0
     
     else:
         driver.get(f"https://theprotocol.it/filtry/{cloudName};t")
@@ -190,6 +211,7 @@ if __name__ == "__main__":
                 subprocess.run(["python", "app.py"])
                 break  
         elif choice == 'no':
+            print("Web scrapping will be done again")
             choiceCloud()
             subprocess.run(["python", "app.py"])
             break  
