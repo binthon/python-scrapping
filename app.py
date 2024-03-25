@@ -35,27 +35,29 @@ def create_plot(df, cloudName):
         'No Fluff Jobs': df['quantityNFJ'].sum(),
         'theProtocol': df['numberProtocol'].sum()
     }
-    labels = []
-    sizes = []
-    for label, size in data.items():
-        if size > 0:
-            labels.append(label)
-            sizes.append(size)
-    plt.figure()
+    total = sum(data.values())
+    
+    sorted_data = sorted(data.items(), key=lambda item: item[1], reverse=True)
+    labels = [f"{label} ({(size / total) * 100:.1f}%)" for label, size in sorted_data if size > 0]
+    sizes = [size for label, size in sorted_data if size > 0]
+    legend_labels = [f"{label} - {size} offers" for label, size in sorted_data if size > 0]
+    plt.figure(figsize=(8, 6))
     plt.title(f"Podział ofert dla {cloudName}")
-    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
-
-    sum = int(df['quantityAll'])
-    plt.text(0.5, -0.25, f"Total offers for {cloudName} is: {sum}", horizontalalignment='center', fontsize=12, transform=plt.gca().transAxes)
-
+    wedges, texts = plt.pie(sizes, labels=labels, startangle=140)
+    plt.legend(wedges, legend_labels, loc="center left", bbox_to_anchor=(1, 0.8))
+    sum_offers = int(df['quantityAll'])
+    plt.axis('equal')
+    plt.text(0.5, -0.1, f"Total offers for {cloudName} is: {sum_offers}", horizontalalignment='center', fontsize=12, transform=plt.gca().transAxes)
+    
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
     plt.close()
-    
+
     image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8').replace('\n', '')
     buf.close()
-    
+
     return image_base64
+
 def get_dataWebiste(websiteName):
     if websiteName is None:
         return pd.DataFrame()  
@@ -78,14 +80,19 @@ def create_plot_website(dw, dwSum, websiteName):
     if filtered_dw.empty:
         return None
 
-    labels = filtered_dw['portal_name'].tolist()
+    filtered_dw = filtered_dw.sort_values(by='quantity', ascending=False)
     sizes = filtered_dw['quantity'].tolist()
+    total = sum(sizes)
 
+    labels_with_percents = [f"{row['portal_name']} ({(row['quantity'] / total) * 100:.1f}%)" for _, row in filtered_dw.iterrows()]
+    legend_labels = [f"{row['portal_name']} - {row['quantity']} offers" for _, row in filtered_dw.iterrows()]
+
+    plt.figure(figsize=(8, 6))
     plt.title(f"Podział ofert dla {websiteName}")
-    plt.figure()
-    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    wedges, texts = plt.pie(sizes, labels=labels_with_percents, startangle=140)[0:2]
+    plt.legend(wedges, legend_labels, loc="center left", bbox_to_anchor=(1, 0.8))
     plt.axis('equal')
-    plt.text(0.5, -0.25, f"Total offers for {websiteName} is: {dwSum}", horizontalalignment='center', fontsize=12, transform=plt.gca().transAxes)
+    plt.text(0.5, -0.1, f"Total offers for {websiteName} is: {dwSum}", horizontalalignment='center', fontsize=12, transform=plt.gca().transAxes)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
