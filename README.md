@@ -1,0 +1,1 @@
+An application created to collect volumes of jobs that include one of the names of cloud providers viz: AWS, Azure, GCP, Oracle CLoud and IBM Cloud. This data is collected from four popular job portals and stored in a SQLite database. A web application is then created that generates a pie chart depending on the user's choice, portal or cloud provider. 
