@@ -2,39 +2,45 @@
 <html>
 <head>
     <title>Oferty Prac z Chmurami</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <form action="/" method="get">
-        <label for="cloudSelect">Select Cloud Provider:</label>
-        <select name="cloudName" id="cloudSelect">
-            <option value="" selected>Select...</option>
-            <option value="*">ALL</option>
-            <option value="aws">AWS</option>
-            <option value="azure">Azure</option>
-            <option value="gcp">Google Cloud</option>
-            <option value="ibm cloud">IBM Cloud</option>
-            <option value="oracle cloud">Oracle Cloud</option>
-        </select>
-        <input type="submit" value="Show">
-    </form>
-    <form action="/" method="get">
-        <label for="websiteSelect">Select Jobs Portal:</label>
-        <select name="websiteName" id="websiteSelect">
-            <option value="" selected>Select...</option>
-            <option value="*">ALL</option>
-            <option value="pracuj">Pracuj.pl</option>
-            <option value="justjoin">Just Join</option>
-            <option value="nfj">No Fluff Jobs</option>
-            <option value="theprotocol">TheProtocol</option>
-        </select>
-        <input type="submit" value="Show">
-    </form>
-    {% if plot %}
-        <img src="data:image/png;base64,{{ plot }}">
-    {% endif %}
-    {% if plotWebiste %}
-        <img src="data:image/png;base64,{{ plotWebiste }}">
-    {% endif %}
-    
+    <div class="container"> 
+        <div class="sidebar"></div>     
+            <form action="/" method="get" class="form-container">
+                <label style="font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;" for="cloudSelect">Select Cloud Provider:</label>
+                <select name="cloudName" id="cloudSelect">
+                    <option value="" selected>Select...</option>
+                    <option value="*">ALL</option>
+                    <option value="aws">AWS</option>
+                    <option value="azure">Azure</option>
+                    <option value="gcp">Google Cloud</option>
+                    <option value="ibm cloud">IBM Cloud</option>
+                    <option value="oracle cloud">Oracle Cloud</option>
+                </select>
+                <input type="submit" value="Show">
+            </form>
+            <form action="/" method="get" class="form-container">   
+                <label style="font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;" for="websiteSelect">Select Jobs Portal:</label>
+                <select name="websiteName" id="websiteSelect">
+                    <option value="" selected>Select...</option>
+                    <option value="*">ALL</option>
+                    <option value="pracuj">Pracuj.pl</option>
+                    <option value="justjoin">Just Join</option>
+                    <option value="nfj">No Fluff Jobs</option>
+                    <option value="theprotocol">TheProtocol</option>
+                </select>
+                <input type="submit" value="Show">
+            </form>
+        </div>
+        <div class="chart">
+        {% if plot %}
+            <img src="data:image/png;base64,{{ plot }}">
+        {% endif %}
+        {% if plotWebiste %}
+            <img src="data:image/png;base64,{{ plotWebiste }}">
+        {% endif %}
+        </div>
+    </div>
 </body>
 </html>
