@@ -1,0 +1,81 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    display: flex; /* Enable flexbox for direct children */
+    height: 100vh; /* Set the body to the full height of the viewport */
+}
+
+.container {
+    display: flex; /* Enable flexbox */
+    width: 100%; /* Set container to full width of the body */
+    height: 100%; /* Set container to full height of the body */
+    align-items: center;
+}
+
+.sidebar {
+    display: flex; /* Enable flexbox */
+    flex-direction: column; /* Stack children vertically */
+    justify-content: space-between; /* Distribute space between and around content items */
+    flex: 0 0 30%; /* Assign width to 30% of the parent container, no grow, no shrink */
+    padding: 20px;
+    box-sizing: border-box; /* Include padding in the width calculation */
+}
+
+.chart {
+    display: flex; /* Enable flexbox */
+    justify-content: center; /* Center chart horizontally */
+    align-items: center; /* Center chart vertically */
+    flex: 0 0 70%; /* Assign width to 70% of the parent container, no grow, no shrink */
+    padding: 20px;
+    box-sizing: border-box; /* Include padding in the width calculation */
+}
+
+form {
+    margin-bottom: 20px; /* Space between forms */
+    width: 100%; /* Each form should take the full width of .sidebar */
+}
+
+.form-container {
+    display: flex;
+    flex-direction: column; /* Stack children vertically */
+    align-items: center; /* Align children to the center horizontally */
+    gap: 10px; /* Adjust the gap as needed */
+}
+
+label {
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    font-size: 18px;
+    /* margin-bottom: 10px; This might not be needed since 'gap' will take care of spacing */
+}
+
+select, input[type="submit"] {
+    width: auto; /* Reset width to fit content or set a specific width */
+    padding: 10px;
+    margin-bottom: 10px; /* Space below each element, if 'gap' is not enough */
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+}
+
+input[type="submit"] {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 10px 20px;
+}
+
+input[type="submit"]:hover {
+    background-color: #0056b3;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-top: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
