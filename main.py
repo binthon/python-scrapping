@@ -4,11 +4,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementClickInterceptedException, WebDriverException
+import time
 import re
 import sqlite3
 import subprocess
 import os
+import json
 
 options = Options() 
 options.add_argument("-headless") 
@@ -17,189 +19,123 @@ driver = webdriver.Firefox(options=options)
 def choiceCloud():
     cloud_providers = ["aws", "azure", "gcp", "ibm cloud", "oracle cloud"]
     website_providers = ["pracuj", "justjoin", "nfj", "theprotocol"]
+    results = {
+        "offerswebsite": {wp: {cp: 0 for cp in cloud_providers} for wp in website_providers},
+        "cloudprovider": {cp: {wp: 0 for wp in website_providers} for cp in cloud_providers}
+    }
+
     for cloud_provider in cloud_providers:
         for website_provider in website_providers:
-            quantityPracuj = countPracuj(cloud_provider, driver)
-            numberJoin = countJust(cloud_provider, driver)
-            quantityNFJ = countNFJCloud(cloud_provider, driver)
-            numberProtocol = countProtocol(cloud_provider, driver)
-            quantityAll = int(quantityPracuj) + int(numberJoin) + int(quantityNFJ) + int(numberProtocol)
-        
-            countCloud(cloud_provider, quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll)
-    
-            countForWebsite(website_provider, cloud_provider, quantityPracuj, numberJoin, quantityNFJ, numberProtocol)
+            count = countOffers(cloud_provider, website_provider, driver) 
+            results["offerswebsite"][website_provider][cloud_provider] += count
+            results["cloudprovider"][cloud_provider][website_provider] += count
 
+    for key in results["offerswebsite"]:
+        results["offerswebsite"][key]["all"] = sum(results["offerswebsite"][key].values())
 
-def countCloud(cloudName, quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll):
-        conn = sqlite3.connect('jobs_offers.db')
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{cloudName}'")
-        table_exists = cursor.fetchone()
+    for key in results["cloudprovider"]:
+        results["cloudprovider"][key]["all"] = sum(results["cloudprovider"][key].values())
 
-        if table_exists:
-            update_query = f'''
-            UPDATE "{cloudName}"
-                SET quantityPracuj = ?,
-                numberJoin = ?,
-                quantityNFJ = ?,
-                numberProtocol = ?,
-                quantityAll = ?
-            WHERE id = ?
-            '''
-            cursor.execute(update_query, (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll, 1))
-        else:
-            create_query = f'''
-            CREATE TABLE "{cloudName}" (
-            id INTEGER PRIMARY KEY,
-            quantityPracuj INTEGER,
-            numberJoin INTEGER,
-            quantityNFJ INTEGER,
-            numberProtocol INTEGER,
-            quantityAll INTEGER
-            )
-            '''
-            cursor.execute(create_query)
+    with open('jobs_offers.json', 'w') as f:
+        json.dump(results, f, indent=4)
+    driver.close()
 
-            insert_query = f'''
-            INSERT INTO "{cloudName}" (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll)
-            VALUES (?, ?, ?, ?, ?)
-            '''
-            cursor.execute(insert_query, (quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll))
-        conn.commit()
-        conn.close()
-
-def countForWebsite(website_provider, cloud_provider, quantityPracuj, numberJoin, quantityNFJ, numberProtocol):
-    if website_provider == "pracuj":
-        updateJobPortalTable(website_provider, cloud_provider, quantityPracuj)
-    elif website_provider == "justjoin":
-        updateJobPortalTable(website_provider, cloud_provider, numberJoin)
-    elif website_provider == "nfj":
-        updateJobPortalTable(website_provider, cloud_provider, quantityNFJ)
-    elif website_provider == "theprotocol":
-        updateJobPortalTable(website_provider, cloud_provider, numberProtocol)
-
-def updateJobPortalTable(website_provider, cloud_provider, quantity):
-    conn = sqlite3.connect('jobs_offers.db')
-    cursor = conn.cursor()
-    table_name = f"{website_provider}"
-    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
-    if not cursor.fetchone():
-        cursor.execute(f'''
-            CREATE TABLE '{table_name}' (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                portal_name TEXT UNIQUE,
-                quantity INTEGER
-            )
-        ''')
-    cursor.execute(f"SELECT quantity FROM '{table_name}' WHERE portal_name = ?", (cloud_provider,))
-    row = cursor.fetchone()
-    if row:
-
-        cursor.execute(f'''
-            UPDATE '{table_name}'
-            SET quantity = quantity + ?
-            WHERE portal_name = ?
-        ''', (quantity, cloud_provider))
-    else:
-
-        cursor.execute(f'''
-            INSERT INTO '{table_name}' (portal_name, quantity)
-            VALUES (?, ?)
-        ''', (cloud_provider, quantity))
-
-    conn.commit()
-    conn.close()
-
-def countPracuj(cloudName, driver):
-    words = cloudName.split()
-    if len(words) > 1:   
-        search_query = '%20'.join(words)
-        driver.get(f"https://it.pracuj.pl/praca/{search_query};kw")
-    else:
-        driver.get(f"https://it.pracuj.pl/praca/{cloudName};kw")
+def countOffers(cloud_provider, website_provider, driver):
+    count = 0
     try:
-        elementPracuj = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "core_c11srdo1"))
-        )
-        quantityPracuj = elementPracuj.text
-    except TimeoutException:
-        return 0
-    return quantityPracuj
-
-def countJust(cloudName, driver):
-    words = cloudName.split()
-    if len(words) > 1:   
-        search_query = '+'.join(words)
-        driver.get(f"https://justjoin.it/?keyword={search_query}")
-    else:
-        driver.get(f"https://justjoin.it/?keyword={cloudName}")
-    try:
-        elementJoin = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "MuiTab-iconWrapper"))
-        )
-        quantityJoin = re.search(r'(\d{1,3}(?:\s\d{3})*)', elementJoin.text)
-        if quantityJoin:
-            numberJoin = quantityJoin.group(1)
-            numberJoin = numberJoin.replace(" ", "")
-            cloudName = cloudName.replace("+", " ")
-            return numberJoin
-    except TimeoutException:
-        return 0 
-        
-    return numberJoin
-
-def countNFJCloud(cloudName, driver):
-    if cloudName.lower() in ["ibm cloud", "oracle cloud"]:
-        return 0
-    else:
-        page_number = 1
-        driver.get(f"https://nofluffjobs.com/pl/{cloudName}?page={page_number}")
-        
-        last_page_reached = False
-        while not last_page_reached:
+        if website_provider == "pracuj":
+            words = cloud_provider.split()
+            if len(words) > 1:   
+                search_query = '%20'.join(words)
+                driver.get(f"https://it.pracuj.pl/praca/{search_query};kw")
+            else:
+                driver.get(f"https://it.pracuj.pl/praca/{cloud_provider};kw")
             try:
-                # Sprawdź, czy przycisk "Load more" jest dostępny
-                load_more_button = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'nfjloadmore')]"))
+                elementPracuj = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "core_c11srdo1"))
                 )
-                if load_more_button.is_displayed():
-                    load_more_button.click()
-                    page_number += 1
-                    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "list-container")))
-                else:
-                    # Jeśli przycisk "Load more" nie jest widoczny, to znaczy, że jesteśmy na ostatniej stronie
-                    last_page_reached = True
+                count = int(elementPracuj.text.replace(" ", ""))
             except TimeoutException:
-                # Jeśli czas oczekiwania na przycisk "Load more" zostanie przekroczony, jesteśmy na ostatniej stronie
-                last_page_reached = True
+                return 0
 
-        # Po osiągnięciu ostatniej strony zliczamy oferty
-        offer_elements = driver.find_elements(By.CSS_SELECTOR, ".list-container > a")
-        quantityNFJ = len(offer_elements)
-        return quantityNFJ
+        elif website_provider == "justjoin":
+            words = cloud_provider.split()
+            if len(words) > 1:   
+                search_query = '+'.join(words)
+                driver.get(f"https://justjoin.it/?keyword={search_query}")
+            else:
+                driver.get(f"https://justjoin.it/?keyword={cloud_provider}")
+            try:
+                elementJoin = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "MuiTab-iconWrapper"))
+                )
+                count = int(re.search(r'(\d+)', elementJoin.text.replace(" ", "")).group(0))
+            except TimeoutException:
+                return 0
 
+        elif website_provider == "nfj":
+            if cloud_provider.lower() in ["ibm cloud", "oracle cloud"]:   
+                return 0
+            else: 
+                try:
+                    driver.get(f"https://nofluffjobs.com/pl/jobs/{cloud_provider}")
 
-def countProtocol(cloudName, driver):
-    if cloudName.lower() in ["ibm cloud", "oracle cloud"]:
-        return 0
-    
-    else:
-        driver.get(f"https://theprotocol.it/filtry/{cloudName};t")
-        elementProtocl = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "su6nd6p"))
-        )
-        quantityProtocol = re.search(r'(\d{1,3}(?:\s\d{3})*)', elementProtocl.text)
-        if quantityProtocol:
-            numberProtocol = quantityProtocol.group(1)
-            numberProtocol = numberProtocol.replace(" ", "")
-            cloudName = cloudName.replace("+", " ")
-        return numberProtocol
+                    while True:
+                        try:
+                            load_more_button = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Pokaż kolejne oferty')]"))
+                            )
+
+                            driver.execute_script("arguments[0].click();", load_more_button)
+                            time.sleep(2)
+                            driver.find_element(By.XPATH, "//button[contains(text(), 'Pokaż kolejne oferty')]")
+
+                        except (NoSuchElementException, TimeoutException):
+                            break
+                        except ElementClickInterceptedException:
+                            print("Another element received the click, trying again...")
+                            time.sleep(2)
+
+                    offer_elements = driver.find_elements(By.CSS_SELECTOR, ".list-container > a")
+                    count = len(offer_elements)
+                except WebDriverException as e:
+                    print(f"WebDriver error: {e}")
+                return 0  
+            
+        elif website_provider == "theprotocol":
+            if cloud_provider.lower() in ["oracle cloud"]:
+                return 0
+            else:
+                words = cloud_provider.split()
+                if len(words) > 1:   
+                    search_query = '-'.join(words)
+                    driver.get(f"https://theprotocol.it/filtry/{search_query};t")
+                else:
+                    driver.get(f"https://theprotocol.it/filtry/{cloud_provider};t")
+
+                elementProtocol = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "su6nd6p"))
+                )
+                quantityProtocol = re.search(r'(\d{1,3}(?:\s\d{3})*)', elementProtocol.text)
+                if quantityProtocol:
+                    numberProtocol = quantityProtocol.group(1)
+                    numberProtocol = numberProtocol.replace(" ", "")
+                    cloud_provider = cloud_provider.replace("+", " ")
+
+                count = int(re.search(r'(\d+)', elementProtocol.text.split()[0]).group(0))
+
+    except (NoSuchElementException, TimeoutException):
+        print(f"Nie znaleziono ofert dla {cloud_provider} na {website_provider}")
+    except Exception as e:
+        print(f"Wystąpił błąd: {e}")
+    finally:
+        return count
     
 if __name__ == "__main__":
     while True: 
         choice = input("Do you want to directly run app? (YES/NO): ").strip().lower()
         if choice == 'yes':
-            if os.path.exists('jobs_offers.db'):
+            if os.path.exists('jobs_offers.json'):
                 try:
                     subprocess.run(["python", "app.py"])
                 finally:

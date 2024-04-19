@@ -6,7 +6,7 @@ import base64
 from io import BytesIO
 import tkinter as tk
 from threading import Thread
-
+import json
 
 app = Flask(__name__)
 
@@ -20,11 +20,24 @@ tkinter_thread.start()
 
 def get_data(cloudName):
     if cloudName is None:
-        return pd.DataFrame() 
-    conn = sqlite3.connect('jobs_offers.db')
-    query = f"SELECT quantityPracuj, numberJoin, quantityNFJ, numberProtocol, quantityAll FROM \"{cloudName}\""
-    df = pd.read_sql_query(query, conn)
-    conn.close()
+        return pd.DataFrame()
+    with open('jobs_offers.json', 'r') as file:
+        data = json.load(file)
+    
+    provider_data = data['cloudprovider'].get(cloudName, {})
+    
+    if not provider_data:
+        return pd.DataFrame()
+
+
+    df = pd.DataFrame([provider_data])
+    df = df.rename(columns={
+        'pracuj': 'quantityPracuj', 
+        'justjoin': 'numberJoin', 
+        'nfj': 'quantityNFJ', 
+        'theprotocol': 'numberProtocol'
+    })
+    df['quantityAll'] = df.sum(axis=1)
     return df
 
 def create_plot(df, cloudName):
@@ -58,41 +71,59 @@ def create_plot(df, cloudName):
 
     return image_base64
 
-def get_dataWebiste(websiteName):
+def get_dataWebsite(websiteName):
     if websiteName is None:
-        return pd.DataFrame()  
-    conn = sqlite3.connect('jobs_offers.db')
-    query = f"SELECT portal_name, quantity FROM \"{websiteName}\""
-    querySum = f"SELECT SUM(quantity) as total FROM \"{websiteName}\""  
-    dw = pd.read_sql_query(query, conn)
-    dwSum = pd.read_sql_query(querySum, conn)['total'].iloc[0]
-    if dwSum is None:
-        dwSum = 0  
-    conn.close()
-    return dw, int(dwSum)
+        return pd.DataFrame(), 0  
+    with open('jobs_offers.json', 'r') as file:
+        data = json.load(file)
+    
+    website_data = data['offerswebsite'].get(websiteName, {})
+    
+    if not website_data:
+        return pd.DataFrame(), 0
+
+    dw = pd.DataFrame(list(website_data.items()), columns=['portal_name', 'quantity'])
+    dwSum = dw['quantity'].sum()
+
+    return dw, dwSum
 
 
 def create_plot_website(dw, dwSum, websiteName):
     if dw.empty:
         return None
-    filtered_dw = dw[dw['quantity'] > 0]
+
+    filtered_dw = dw[dw['portal_name'] != 'all']
+    
+    filtered_dw = filtered_dw.sort_values(by='quantity', ascending=False)
 
     if filtered_dw.empty:
         return None
 
-    filtered_dw = filtered_dw.sort_values(by='quantity', ascending=False)
-    sizes = filtered_dw['quantity'].tolist()
-    total = sum(sizes)
+    chart_data = filtered_dw[filtered_dw['quantity'] > 0]
+    sizes = chart_data['quantity'].tolist()
+    labels_with_percents = [
+        f"{row['portal_name']} ({(row['quantity'] / dwSum) * 100:.1f}%)"
+        for _, row in chart_data.iterrows()
+    ]
 
-    labels_with_percents = [f"{row['portal_name']} ({(row['quantity'] / total) * 100:.1f}%)" for _, row in filtered_dw.iterrows()]
-    legend_labels = [f"{row['portal_name']} - {row['quantity']} offers" for _, row in filtered_dw.iterrows()]
+    legend_labels = [
+        f"{row['portal_name']} - {row['quantity']} offers"
+        for _, row in filtered_dw.iterrows()
+    ]
 
     plt.figure(figsize=(8, 6))
-    plt.title(f"Podział ofert dla {websiteName}")
-    wedges, texts = plt.pie(sizes, labels=labels_with_percents, startangle=140)[0:2]
-    plt.legend(wedges, legend_labels, loc="center left", bbox_to_anchor=(1, 0.8))
+    plt.title(f"Podział ofert na {websiteName}")
+    wedges, texts = plt.pie(sizes, labels=labels_with_percents, startangle=140)
+    
+    custom_wedges = [plt.Patch(color=plt.cm.viridis(i/len(sizes)), label=label)
+                     for i, label in enumerate(legend_labels)]
+    
+    plt.legend(custom_wedges, legend_labels, loc="center left", bbox_to_anchor=(1, 0.8))
     plt.axis('equal')
-    plt.text(0.5, -0.1, f"Total offers for {websiteName} is: {dwSum}", horizontalalignment='center', fontsize=12, transform=plt.gca().transAxes)
+
+    
+    adjusted_total = filtered_dw['quantity'].sum()
+    plt.text(0.5, -0.1, f"Łączna liczba ofert na {websiteName} to: {adjusted_total}", horizontalalignment='center', fontsize=12, transform=plt.gca().transAxes)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -116,7 +147,7 @@ def index():
         plot = create_plot(df, cloudName)
         return render_template('index.html', plot=plot, cloudName=cloudName)
     elif websiteName:
-        dw, dwSum = get_dataWebiste(websiteName) 
+        dw, dwSum = get_dataWebsite(websiteName) 
         plotWebiste = create_plot_website(dw, dwSum, websiteName)  
         return render_template('index.html', plotWebiste=plotWebiste, websiteName=websiteName)
     
