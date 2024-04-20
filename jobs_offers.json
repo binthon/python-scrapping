@@ -1,73 +1,73 @@
 {
     "offerswebsite": {
         "pracuj": {
-            "aws": 544,
-            "azure": 0,
-            "gcp": 305,
-            "ibm cloud": 16,
-            "oracle cloud": 414,
-            "all": 1279
+            "aws": 547,
+            "azure": 846,
+            "gcp": 302,
+            "ibm cloud": 18,
+            "oracle cloud": 403,
+            "all": 2116
         },
         "justjoin": {
-            "aws": 2815,
-            "azure": 2959,
-            "gcp": 1060,
+            "aws": 2803,
+            "azure": 2908,
+            "gcp": 1067,
             "ibm cloud": 0,
-            "oracle cloud": 14,
-            "all": 6848
+            "oracle cloud": 30,
+            "all": 6808
         },
         "nfj": {
-            "aws": 248,
-            "azure": 239,
-            "gcp": 132,
+            "aws": 253,
+            "azure": 237,
+            "gcp": 129,
             "ibm cloud": 0,
             "oracle cloud": 0,
             "all": 619
         },
         "theprotocol": {
-            "aws": 308,
-            "azure": 255,
-            "gcp": 148,
+            "aws": 292,
+            "azure": 253,
+            "gcp": 144,
             "ibm cloud": 0,
             "oracle cloud": 0,
-            "all": 711
+            "all": 689
         }
     },
     "cloudprovider": {
         "aws": {
-            "pracuj": 544,
-            "justjoin": 2815,
-            "nfj": 248,
-            "theprotocol": 308,
-            "all": 3915
+            "pracuj": 547,
+            "justjoin": 2803,
+            "nfj": 253,
+            "theprotocol": 292,
+            "all": 3895
         },
         "azure": {
-            "pracuj": 0,
-            "justjoin": 2959,
-            "nfj": 239,
-            "theprotocol": 255,
-            "all": 3453
+            "pracuj": 846,
+            "justjoin": 2908,
+            "nfj": 237,
+            "theprotocol": 253,
+            "all": 4244
         },
         "gcp": {
-            "pracuj": 305,
-            "justjoin": 1060,
-            "nfj": 132,
-            "theprotocol": 148,
-            "all": 1645
+            "pracuj": 302,
+            "justjoin": 1067,
+            "nfj": 129,
+            "theprotocol": 144,
+            "all": 1642
         },
         "ibm cloud": {
-            "pracuj": 16,
+            "pracuj": 18,
             "justjoin": 0,
             "nfj": 0,
             "theprotocol": 0,
-            "all": 16
+            "all": 18
         },
         "oracle cloud": {
-            "pracuj": 414,
-            "justjoin": 14,
+            "pracuj": 403,
+            "justjoin": 30,
             "nfj": 0,
             "theprotocol": 0,
-            "all": 428
+            "all": 433
         }
     }
 }
