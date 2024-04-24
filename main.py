@@ -7,7 +7,6 @@ from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementClickInterceptedException, WebDriverException
 import time
 import re
-import sqlite3
 import subprocess
 import os
 import json
