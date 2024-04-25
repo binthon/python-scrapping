@@ -54,6 +54,7 @@ To re-start container enter command
 ```bash
 docker start -it {container_id/name}
 ```
+![obraz_2024-04-25_123305946](https://github.com/binthon/python-scrapping/assets/74725795/f29ab5ae-c54a-4a71-ac1a-2a7ad61df927)
 
 
 # Problems
